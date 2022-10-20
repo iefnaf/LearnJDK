@@ -28,9 +28,12 @@ package java.io;
 /**
  * This abstract class is the superclass of all classes representing
  * an input stream of bytes.
+ * 这个抽象类是所有代表字节输入流类的父类
  *
  * <p> Applications that need to define a subclass of <code>InputStream</code>
  * must always provide a method that returns the next byte of input.
+ * 所有继承自这个类的类，都需要至少实现一个返回输入流中下一个字节的方法
+ * 即int read()这个方法
  *
  * @author  Arthur van Hoff
  * @see     java.io.BufferedInputStream
@@ -46,6 +49,7 @@ public abstract class InputStream implements Closeable {
 
     // MAX_SKIP_BUFFER_SIZE is used to determine the maximum buffer size to
     // use when skipping.
+    // 当调用skip方法时buffer的最大大小 todo @yudong
     private static final int MAX_SKIP_BUFFER_SIZE = 2048;
 
     /**
@@ -61,6 +65,11 @@ public abstract class InputStream implements Closeable {
      * @return     the next byte of data, or <code>-1</code> if the end of the
      *             stream is reached.
      * @exception  IOException  if an I/O error occurs.
+     *
+     * 1. 返回流中的下一个字节，虽然使用int来表示，但是实际上返回的是字节
+     *    todo @yudong 那为啥不把返回值设为byte?
+     * 2. 如果读到了流的末尾，则返回-1
+     * 3. 方法可能会被阻塞
      */
     public abstract int read() throws IOException;
 
@@ -96,6 +105,12 @@ public abstract class InputStream implements Closeable {
      * if some other I/O error occurs.
      * @exception  NullPointerException  if <code>b</code> is <code>null</code>.
      * @see        java.io.InputStream#read(byte[], int, int)
+     *
+     * 1. 从流中读取若干字节到b中，返回读取的字节数
+     * special case:
+     *  1.1 b的长度为0，不从流中读取数据，返回0
+     * 2. 如果读到流的末尾，返回-1
+     * 3. 正常情况下，至少读1个字节，至多读b.length个字节
      */
     public int read(byte b[]) throws IOException {
         return read(b, 0, b.length);
@@ -157,6 +172,8 @@ public abstract class InputStream implements Closeable {
      * <code>len</code> is negative, or <code>len</code> is greater than
      * <code>b.length - off</code>
      * @see        java.io.InputStream#read()
+     *
+     * 尽量从input stream中读len个字节到b中
      */
     public int read(byte b[], int off, int len) throws IOException {
         if (b == null) {
@@ -167,6 +184,8 @@ public abstract class InputStream implements Closeable {
             return 0;
         }
 
+        // 第一次read的异常抛给上层，之后read的异常不抛
+        // todo @yudong 为什么后续的异常不抛了?
         int c = read();
         if (c == -1) {
             return -1;
@@ -208,6 +227,13 @@ public abstract class InputStream implements Closeable {
      * @return     the actual number of bytes skipped.
      * @exception  IOException  if the stream does not support seek,
      *                          or if some other I/O error occurs.
+     *
+     * 跳过流中的n个字节
+     * 1. 提前达到了流的末尾，返回实际跳过的字节数
+     * 2. n < 0，不跳过任何字节，返回0
+     *
+     * 申请了一个skip buffer，然后将input stream中的数据读到skip buffer中（可能读多次）
+     * todo @yudong 这样做是不是多了一次数据的拷贝，将数据从input stream中拷贝到skip buffer中，感觉可以更加高效
      */
     public long skip(long n) throws IOException {
 
@@ -256,6 +282,9 @@ public abstract class InputStream implements Closeable {
      *             over) from this input stream without blocking or {@code 0} when
      *             it reaches the end of the input stream.
      * @exception  IOException if an I/O error occurs.
+     *
+     * 返回流中可用的字节数（可能不是全部可用的字节数）
+     * todo @yudong 当available为0是是否就以为这达到了input stream的末尾? 如果需要block一下才能继续读是不是也返回0
      */
     public int available() throws IOException {
         return 0;
@@ -269,6 +298,8 @@ public abstract class InputStream implements Closeable {
      * nothing.
      *
      * @exception  IOException  if an I/O error occurs.
+     *
+     * input stream不再使用的话一定要记得关，否则资源可能会一直占用
      */
     public void close() throws IOException {}
 
@@ -297,6 +328,10 @@ public abstract class InputStream implements Closeable {
      * @param   readlimit   the maximum limit of bytes that can be read before
      *                      the mark position becomes invalid.
      * @see     java.io.InputStream#reset()
+     *
+     * 在当前的position这里设置一个标记，你最多往后走readlimit步，当然，也可以选择重返标记
+     * 这里提到了一种mark的实现方式，即记住从mark之后读取的所有数据
+     * 如果读取的数据超过了readlimit，标记失效
      */
     public synchronized void mark(int readlimit) {}
 
@@ -343,6 +378,7 @@ public abstract class InputStream implements Closeable {
      *               mark has been invalidated.
      * @see     java.io.InputStream#mark(int)
      * @see     java.io.IOException
+     * 重返mark
      */
     public synchronized void reset() throws IOException {
         throw new IOException("mark/reset not supported");
@@ -359,6 +395,7 @@ public abstract class InputStream implements Closeable {
      *          and reset methods; <code>false</code> otherwise.
      * @see     java.io.InputStream#mark(int)
      * @see     java.io.InputStream#reset()
+     * 这个input stream是否支持mark
      */
     public boolean markSupported() {
         return false;
